@@ -1,949 +1,1095 @@
+
 <!DOCTYPE html>
-<html lang="es" class="light">
-<head><meta name="google-site-verification" content="_LY2t0CYPcAPgiKBwq5DfG7GxxbEE-TNzc0AWwO2MNs" />
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Punto de Venta Inteligente - Reconocimiento Óptico IA</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            500: '#10b981',
-                            600: '#059669',
-                            700: '#047857',
-                        },
-                        accent: {
-                            50: '#f0f9ff',
-                            500: '#0284c7',
-                            600: '#0369a1',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- TensorFlow.js & COCO-SSD Model -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
-    
-    <style>
-        /* Modern Clean Light Mode Animations */
-        @keyframes scanLine {
-            0% { top: 0%; opacity: 0.8; }
-            50% { opacity: 1; }
-            100% { top: 100%; opacity: 0.8; }
-        }
-        .scan-line {
-            position: absolute;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, #10b981, transparent);
-            box-shadow: 0 0 12px #10b981;
-            animation: scanLine 2s linear infinite;
-        }
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#101827">
+<title>La Viborita - Arcade</title>
 
-        /* Light Scrollbar Styling */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
+<style>
+:root {
+  --bg: #101827;
+  --panel: #192538;
+  --panel2: #24364b;
+  --green: #69f0a0;
+  --text: #f4f8ff;
+  --muted: #a8b8cc;
+  --red: #ff647c;
+}
 
-        /* Printable ticket layout tweaks */
-        @media print {
-            body * {
-                visibility: hidden;
-            }
-            #printableReceipt, #printableReceipt * {
-                visibility: visible;
-            }
-            #printableReceipt {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-            }
-        }
-    </style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 22px 12px;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(ellipse at top, #1d493e, transparent 55%),
+              linear-gradient(135deg, #101827, #101e2b);
+  color: var(--text);
+  font-family: system-ui, Arial, sans-serif;
+}
+
+button, input, select { font: inherit; }
+
+button { cursor: pointer; touch-action: manipulation; }
+
+button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 3px solid white;
+  outline-offset: 3px;
+}
+
+.app {
+  width: 100%;
+  max-width: 1000px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(260px, .85fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.panel {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid #ffffff12;
+  border-radius: 22px;
+  background: rgba(25, 37, 56, .97);
+  box-shadow: 0 20px 60px #0004;
+}
+
+.encabezado {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 20px;
+}
+
+.logo {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: #69f0a019;
+  font-size: 32px;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(24px, 4vw, 32px);
+  letter-spacing: -1px;
+}
+
+.subtitulo {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.jugador-form {
+  margin-bottom: 16px;
+}
+
+.etiqueta {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+}
+
+input, select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ffffff20;
+  border-radius: 11px;
+  background: var(--panel2);
+  color: white;
+}
+
+input::placeholder { color: #a8b8cc99; }
+
+.estadisticas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin-bottom: 14px;
+}
+
+.stat {
+  padding: 12px 5px;
+  text-align: center;
+  border-radius: 13px;
+  background: var(--panel2);
+}
+
+.stat span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.stat strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--green);
+  font-size: 23px;
+}
+
+.zona-juego {
+  overflow: hidden;
+  border: 2px solid #314b60;
+  border-radius: 15px;
+  background: #0b1520;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  touch-action: none;
+}
+
+.estado {
+  min-height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.botones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.btn {
+  padding: 12px;
+  border: 0;
+  border-radius: 11px;
+  font-weight: 750;
+}
+
+.btn-verde {
+  background: var(--green);
+  color: #10251a;
+}
+
+.btn-secundario {
+  background: #30445b;
+  color: white;
+}
+
+.btn-peligro {
+  background: #512a3a;
+  color: #ffd9e0;
+}
+
+.btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.bloque { margin-bottom: 22px; }
+
+.fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ayuda {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.interruptor {
+  width: 45px;
+  height: 26px;
+  padding: 3px;
+  border: 0;
+  border-radius: 20px;
+  background: #536175;
+  flex-shrink: 0;
+}
+
+.interruptor::after {
+  content: "";
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  transition: transform .2s;
+}
+
+.interruptor.activo { background: #20c878; }
+.interruptor.activo::after { transform: translateX(19px); }
+
+.titulo-tabla {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+h2 { margin: 0; font-size: 17px; }
+
+.texto-btn {
+  padding: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.lista-records {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.record {
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid #ffffff12;
+}
+
+.record:last-child { border-bottom: 0; }
+
+.posicion { font-size: 18px; }
+
+.record-nombre {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.record-detalle {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.record-puntos {
+  color: var(--green);
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.vacio {
+  padding: 20px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.controles-moviles {
+  display: none;
+  grid-template-columns: repeat(3, 58px);
+  gap: 7px;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+.direccion {
+  min-height: 48px;
+  border: 1px solid #ffffff15;
+  border-radius: 12px;
+  background: #30445b;
+  color: white;
+  font-size: 22px;
+  user-select: none;
+}
+
+.direccion:active { background: #42634f; }
+.invisible { visibility: hidden; }
+
+.teclas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.tecla {
+  padding: 4px 8px;
+  border: 1px solid #ffffff25;
+  border-radius: 6px;
+  color: white;
+  font-size: 11px;
+}
+
+.pie {
+  margin-top: 15px;
+  color: #8395a9;
+  font-size: 11px;
+  text-align: center;
+}
+
+@media (max-width: 740px) {
+  body { padding: 10px 7px; align-items: flex-start; }
+
+  .app {
+    max-width: 500px;
+    grid-template-columns: 1fr;
+    gap: 13px;
+  }
+
+  .panel { padding: 15px; border-radius: 18px; }
+
+  .controles-moviles { display: grid; }
+
+  .zona-juego { max-width: 440px; margin: auto; }
+}
+</style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col antialiased">
 
-    <!-- Header Navigation -->
-    <header class="border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-30 px-4 py-3 shadow-sm flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-            <div class="p-2.5 bg-brand-50 text-brand-600 rounded-xl border border-brand-100 shadow-sm">
-                <i data-lucide="scan-line" class="w-6 h-6"></i>
-            </div>
-            <div>
-                <h1 class="font-bold text-lg leading-tight tracking-tight text-slate-900 flex items-center gap-2">
-                    VisionPOS <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-brand-100 text-brand-700 border border-brand-200">IA Light</span>
-                </h1>
-                <p class="text-xs text-slate-500">Punto de Venta con Visión Computacional</p>
-            </div>
-        </div>
+<body>
 
-        <div class="flex items-center gap-4">
-            <!-- AI Engine Load Indicator -->
-            <div id="aiStatusBadge" class="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shadow-sm">
-                <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-                <span>Cargando modelo IA...</span>
-            </div>
+<main class="app">
 
-            <div class="text-right hidden md:block border-l border-slate-200 pl-4">
-                <span id="liveClock" class="text-sm font-mono font-semibold text-slate-700">00:00:00</span>
-                <p class="text-[11px] text-slate-400">Caja #01 - Modo Claro</p>
-            </div>
-        </div>
+  <section class="panel">
+    <header class="encabezado">
+      <div class="logo">🐍</div>
+      <div>
+        <h1>La Viborita</h1>
+        <div class="subtitulo">ARCADE · SUPERÁ TU RÉCORD</div>
+      </div>
     </header>
 
-    <!-- Main Workspace Layout -->
-    <main class="flex-1 p-4 lg:p-6 max-w-[1600px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        <!-- LEFT COLUMN: Real-Time Camera Scanner & Catalog Fallback (7 Cols) -->
-        <section class="lg:col-span-7 flex flex-col gap-6">
-            
-            <!-- Real-Time Camera Box -->
-            <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col justify-between relative">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="camera" class="w-5 h-5 text-brand-600"></i>
-                        <h2 class="font-semibold text-slate-800">Escáner de Cámara en Tiempo Real</h2>
-                    </div>
-                    
-                    <button id="toggleCameraBtn" class="px-3.5 py-1.5 text-xs font-medium rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition flex items-center gap-1.5 shadow-sm active:scale-95">
-                        <i data-lucide="video" class="w-3.5 h-3.5"></i>
-                        <span id="toggleCamText">Iniciar Cámara</span>
-                    </button>
-                </div>
-
-                <!-- Video / Canvas Viewport Container -->
-                <div class="relative aspect-video w-full bg-slate-900 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center shadow-inner group">
-                    
-                    <!-- WebCam Video Stream -->
-                    <video id="webcam" autoplay playsinline muted class="absolute inset-0 w-full h-full object-contain hidden"></video>
-
-                    <!-- Realtime Detection Overlay Canvas -->
-                    <canvas id="detectionCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
-
-                    <!-- Laser Scan Line Effect -->
-                    <div id="scanAnimation" class="scan-line hidden z-10"></div>
-
-                    <!-- Off-State Placeholder Container -->
-                    <div id="cameraPlaceholder" class="flex flex-col items-center justify-center p-6 text-center text-slate-400 z-0">
-                        <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mb-3 text-slate-300 group-hover:scale-105 transition shadow-md">
-                            <i data-lucide="camera-off" class="w-8 h-8"></i>
-                        </div>
-                        <p class="text-sm font-medium text-slate-200">Cámara Inactiva</p>
-                        <p class="text-xs text-slate-400 max-w-xs mt-1">
-                            Presiona "Iniciar Cámara" para escanear productos en vivo o usa la botonera rápida de prueba.
-                        </p>
-                    </div>
-
-                    <!-- Target Reticle Box -->
-                    <div id="targetReticle" class="absolute inset-10 sm:inset-14 border-2 border-dashed border-brand-500/60 rounded-2xl pointer-events-none hidden flex items-center justify-center">
-                        <span class="text-[10px] font-bold text-brand-600 uppercase tracking-widest bg-white/90 backdrop-blur px-2.5 py-1 rounded-lg shadow border border-brand-200">
-                            Zona de Detección
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Detection Live Status & Add Button -->
-                <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex-1 min-w-[220px]">
-                        <p class="text-xs font-medium text-slate-500 mb-1">Detección de IA Actual:</p>
-                        <div id="lastDetectedBox" class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center justify-between shadow-inner">
-                            <div class="flex items-center gap-2 truncate">
-                                <span id="detectedBadge" class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
-                                <span id="detectedText" class="text-sm font-semibold text-slate-700 truncate">Esperando escaneo...</span>
-                            </div>
-                            <span id="detectedConfidence" class="text-xs font-mono font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded border border-brand-200 ml-2"></span>
-                        </div>
-                    </div>
-
-                    <button id="scanTriggerBtn" disabled class="px-5 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:bg-slate-200 disabled:text-slate-400 text-white font-semibold text-sm transition flex items-center gap-2 shadow-sm active:scale-95">
-                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                        <span>Agregar al Carrito</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Manual Test Preset Grid (Fallback) -->
-            <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm">
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                        <i data-lucide="layout-grid" class="w-4 h-4 text-brand-600"></i>
-                        Prueba Rápida sin Cámara / Catálogo
-                    </h3>
-                    <label class="text-xs font-semibold text-accent-600 hover:text-accent-500 cursor-pointer flex items-center gap-1 transition">
-                        <i data-lucide="upload" class="w-3.5 h-3.5"></i>
-                        <span>Subir Imagen</span>
-                        <input type="file" id="imageUploadInput" accept="image/*" class="hidden">
-                    </label>
-                </div>
-
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5" id="presetCatalogGrid">
-                    <!-- Preset Product Buttons dynamically injected -->
-                </div>
-            </div>
-
-            <!-- Dynamic Cross-Selling Recommendations Bar -->
-            <div class="bg-gradient-to-r from-emerald-50/60 to-sky-50/60 border border-brand-200 rounded-2xl p-4 sm:p-5 shadow-sm">
-                <div class="flex items-center gap-2 mb-1.5">
-                    <div class="p-1.5 bg-brand-100 text-brand-700 rounded-lg">
-                        <i data-lucide="sparkles" class="w-4 h-4"></i>
-                    </div>
-                    <h3 class="text-sm font-bold text-slate-800">Recomendaciones Inteligentes (IA)</h3>
-                </div>
-                <p id="aiAdviceText" class="text-xs text-slate-500 mb-3">Agrega productos al carrito para recibir sugerencias de venta cruzada en tiempo real.</p>
-                
-                <div id="recommendationsContainer" class="flex gap-2.5 overflow-x-auto pb-1">
-                    <span class="text-xs text-slate-400 italic">No hay sugerencias en este momento.</span>
-                </div>
-            </div>
-
-        </section>
-
-        <!-- RIGHT COLUMN: Shopping Cart & Checkout (5 Cols) -->
-        <section class="lg:col-span-5 flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden h-full">
-            
-            <!-- Cart Header -->
-            <div class="p-4 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="shopping-cart" class="w-5 h-5 text-brand-600"></i>
-                    <h2 class="font-bold text-slate-800">Carrito de Compras</h2>
-                    <span id="cartCountBadge" class="bg-brand-100 text-brand-700 border border-brand-200 text-xs px-2.5 py-0.5 rounded-full font-bold">0</span>
-                </div>
-                <button id="clearCartBtn" class="text-xs font-semibold text-slate-400 hover:text-red-500 transition flex items-center gap-1">
-                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                    <span>Vaciar</span>
-                </button>
-            </div>
-
-            <!-- Dynamic Cart Items Container -->
-            <div id="cartList" class="flex-1 overflow-y-auto p-4 space-y-3 min-h-[320px] max-h-[480px]">
-                <!-- Empty Cart State -->
-                <div id="emptyCartState" class="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 my-auto">
-                    <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                        <i data-lucide="shopping-bag" class="w-8 h-8 stroke-1 text-slate-400"></i>
-                    </div>
-                    <p class="text-sm font-semibold text-slate-600">El carrito está vacío</p>
-                    <p class="text-xs text-slate-400 max-w-xs mt-1">Escanea productos con la cámara o haz clic en los botones del catálogo de prueba.</p>
-                </div>
-            </div>
-
-            <!-- Pricing & Total Summary Footer -->
-            <div class="p-4 sm:p-5 bg-slate-50 border-t border-slate-200 space-y-2">
-                <div class="flex justify-between text-xs text-slate-500 font-medium">
-                    <span>Subtotal</span>
-                    <span id="subtotalPrice" class="font-mono text-slate-700 font-semibold">$0.00</span>
-                </div>
-                <div class="flex justify-between text-xs text-slate-500 font-medium">
-                    <span>IVA (21%)</span>
-                    <span id="taxPrice" class="font-mono text-slate-700 font-semibold">$0.00</span>
-                </div>
-                <div class="flex justify-between text-xs text-brand-600 font-semibold">
-                    <span>Descuento Promocional (IA)</span>
-                    <span id="discountPrice" class="font-mono">-$0.00</span>
-                </div>
-                <div class="pt-3 border-t border-slate-200 flex justify-between items-center text-base font-bold text-slate-900">
-                    <span>Total a Pagar</span>
-                    <span id="totalPrice" class="text-2xl font-mono text-brand-600">$0.00</span>
-                </div>
-
-                <!-- Final Payment Checkout Button -->
-                <button id="checkoutBtn" disabled class="w-full mt-4 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-sm transition shadow-sm flex items-center justify-center gap-2 active:scale-98">
-                    <i data-lucide="credit-card" class="w-4 h-4"></i>
-                    <span>Finalizar Venta y Emitir Ticket</span>
-                </button>
-            </div>
-
-        </section>
-    </main>
-
-    <!-- Modal Receipt / Checkout Ticket Popup -->
-    <div id="receiptModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white text-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative border border-slate-200">
-            
-            <button id="closeModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
-
-            <!-- Printable Ticket Layout -->
-            <div id="printableReceipt" class="font-mono text-xs space-y-4">
-                <div class="text-center border-b border-dashed border-slate-300 pb-4">
-                    <h2 class="text-lg font-bold tracking-tight text-slate-900">SUPERMERCADO VISION POS</h2>
-                    <p class="text-slate-500 text-[10px]">CUIT: 30-71122334-9 | IIBB: 901-283921</p>
-                    <p class="text-slate-500 text-[10px]">Av. Corrientes 1234, CABA</p>
-                    <p class="text-slate-400 text-[10px] mt-1" id="receiptDate">Fecha: --/--/----</p>
-                </div>
-
-                <div class="border-b border-dashed border-slate-300 pb-3">
-                    <div class="grid grid-cols-12 font-bold mb-2 border-b pb-1 text-slate-700">
-                        <span class="col-span-6">CANT. PRODUCTO</span>
-                        <span class="col-span-3 text-right">P.UNIT</span>
-                        <span class="col-span-3 text-right">TOTAL</span>
-                    </div>
-                    <div id="receiptItemsList" class="space-y-1.5 text-slate-800">
-                        <!-- Items injected dynamically -->
-                    </div>
-                </div>
-
-                <div class="space-y-1 text-right text-slate-600 pt-1">
-                    <div class="flex justify-between"><span>SUBTOTAL:</span><span id="receiptSubtotal">$0.00</span></div>
-                    <div class="flex justify-between"><span>IVA (21%):</span><span id="receiptTax">$0.00</span></div>
-                    <div class="flex justify-between text-brand-600 font-bold"><span>DESCUENTO IA:</span><span id="receiptDiscount">-$0.00</span></div>
-                    <div class="flex justify-between text-sm font-bold text-slate-900 pt-1.5 border-t border-slate-800"><span>TOTAL:</span><span id="receiptTotal">$0.00</span></div>
-                </div>
-
-                <div class="text-center pt-4 border-t border-dashed border-slate-300 text-slate-500 space-y-1">
-                    <p class="font-bold text-slate-700">¡Gracias por su compra!</p>
-                    <p class="text-[9px]">Comprobante generado por VisionPOS AI</p>
-                    <div class="mt-3 flex justify-center">
-                        <div class="h-8 bg-slate-800 w-3/4 flex items-center justify-center text-white text-[8px] font-sans rounded">
-                            ||| | |||| | ||| |||| || | |||| ||
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Modal Action Buttons -->
-            <div class="mt-6 flex gap-3 font-sans">
-                <button id="printReceiptBtn" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold border border-slate-200 transition flex items-center justify-center gap-2 text-xs">
-                    <i data-lucide="printer" class="w-4 h-4"></i>
-                    <span>Imprimir Ticket</span>
-                </button>
-                <button id="newSaleBtn" class="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold transition flex items-center justify-center gap-2 text-xs shadow-sm">
-                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                    <span>Nueva Venta</span>
-                </button>
-            </div>
-        </div>
+    <div class="jugador-form">
+      <label class="etiqueta" for="nombreJugador">👤 Nombre del jugador</label>
+      <input id="nombreJugador" type="text"
+        maxlength="18" autocomplete="nickname"
+        placeholder="Escribí tu nombre..." value="Jugador">
+      <p class="ayuda">Tu nombre aparecerá en la clasificación al terminar la partida.</p>
     </div>
 
-    <!-- Notification Toast Container -->
-    <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+    <div class="estadisticas">
+      <div class="stat">
+        <span>Puntaje</span>
+        <strong id="puntaje">0</strong>
+      </div>
+      <div class="stat">
+        <span>Récord</span>
+        <strong id="record">0</strong>
+      </div>
+      <div class="stat">
+        <span>Nivel</span>
+        <strong id="nivel">1</strong>
+      </div>
+    </div>
 
-    <!-- JavaScript Application Logic -->
-    <script>
-        /**
-         * PRODUCT CATALOG MATRIX (Database)
-         * Maps COCO-SSD class labels and custom items to local catalog data.
-         */
-        const PRODUCT_CATALOG = {
-            'apple': { name: 'Manzana Gala', price: 350.00, category: 'frutas', icon: 'apple', code: 'FRU-01' },
-            'banana': { name: 'Banana Ecuador', price: 280.00, category: 'frutas', icon: 'banana', code: 'FRU-02' },
-            'orange': { name: 'Naranja de Ombligo', price: 300.00, category: 'frutas', icon: 'citrus', code: 'FRU-03' },
-            'cup': { name: 'Café Expresso / Taza', price: 850.00, category: 'bebidas', icon: 'coffee', code: 'BEB-01' },
-            'bottle': { name: 'Agua Mineral 500ml', price: 600.00, category: 'bebidas', icon: 'bottle-water', code: 'BEB-02' },
-            'book': { name: 'Cuaderno Anillado A4', price: 1450.00, category: 'libreria', icon: 'book-open', code: 'LIB-01' },
-            'cell phone': { name: 'Smartphone Pro', price: 125000.00, category: 'tecnologia', icon: 'smartphone', code: 'TEC-01' },
-            'keyboard': { name: 'Teclado Mecánico', price: 18900.00, category: 'tecnologia', icon: 'keyboard', code: 'TEC-02' },
-            'mouse': { name: 'Mouse Óptico Inalámbrico', price: 6500.00, category: 'tecnologia', icon: 'mouse', code: 'TEC-03' },
-            'laptop': { name: 'Notebook Ultrabook', price: 450000.00, category: 'tecnologia', icon: 'laptop', code: 'TEC-04' },
-            'donut': { name: 'Donut Glaseada', price: 550.00, category: 'panaderia', icon: 'donut', code: 'PAN-01' }
-        };
+    <div class="zona-juego">
+      <canvas id="juego" width="400" height="400"
+        aria-label="Tablero de La Viborita"></canvas>
+    </div>
 
-        // Rule definitions for cross-selling recommendations
-        const RECOMMENDATION_RULES = [
-            {
-                triggerCategory: 'bebidas',
-                suggestKey: 'donut',
-                reason: 'Acompaña tu bebida con una deliciosa donut glaseada.'
-            },
-            {
-                triggerCategory: 'frutas',
-                suggestKey: 'bottle',
-                reason: '¡Mantente hidratado! Agrega una botella de agua.'
-            },
-            {
-                triggerCategory: 'tecnologia',
-                suggestKey: 'mouse',
-                reason: 'Optimiza tu experiencia de uso con un mouse ergonómico.'
-            },
-            {
-                triggerCategory: 'panaderia',
-                suggestKey: 'cup',
-                reason: 'Disfruta de un café caliente para acompañar tu factura.'
-            }
-        ];
+    <div class="estado" id="estado" aria-live="polite">
+      ¡Escribí tu nombre y empezá!
+    </div>
 
-        // Application State Variables
-        let cocoModel = null;
-        let isCameraActive = false;
-        let videoStream = null;
-        let animationFrameId = null;
-        let lastDetectedObject = null;
-        let cart = [];
+    <div class="botones">
+      <button class="btn btn-verde" id="btnInicio">▶ Jugar</button>
+      <button class="btn btn-secundario" id="btnPausa" disabled>⏸ Pausar</button>
+    </div>
 
-        // DOM Element References
-        const webcam = document.getElementById('webcam');
-        const canvas = document.getElementById('detectionCanvas');
-        const ctx = canvas.getContext('2d');
-        const toggleCameraBtn = document.getElementById('toggleCameraBtn');
-        const toggleCamText = document.getElementById('toggleCamText');
-        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
-        const scanAnimation = document.getElementById('scanAnimation');
-        const targetReticle = document.getElementById('targetReticle');
-        const aiStatusBadge = document.getElementById('aiStatusBadge');
-        const scanTriggerBtn = document.getElementById('scanTriggerBtn');
-        const detectedText = document.getElementById('detectedText');
-        const detectedBadge = document.getElementById('detectedBadge');
-        const detectedConfidence = document.getElementById('detectedConfidence');
-        const cartList = document.getElementById('cartList');
-        const emptyCartState = document.getElementById('emptyCartState');
-        const cartCountBadge = document.getElementById('cartCountBadge');
-        const subtotalPrice = document.getElementById('subtotalPrice');
-        const taxPrice = document.getElementById('taxPrice');
-        const discountPrice = document.getElementById('discountPrice');
-        const totalPrice = document.getElementById('totalPrice');
-        const checkoutBtn = document.getElementById('checkoutBtn');
-        const clearCartBtn = document.getElementById('clearCartBtn');
-        const recommendationsContainer = document.getElementById('recommendationsContainer');
-        const aiAdviceText = document.getElementById('aiAdviceText');
+    <div class="controles-moviles">
+      <button class="direccion invisible" tabindex="-1"> </button>
+      <button class="direccion" data-dir="arriba" aria-label="Arriba">▲</button>
+      <button class="direccion invisible" tabindex="-1"> </button>
+      <button class="direccion" data-dir="izquierda" aria-label="Izquierda">◀</button>
+      <button class="direccion" data-dir="abajo" aria-label="Abajo">▼</button>
+      <button class="direccion" data-dir="derecha" aria-label="Derecha">▶</button>
+    </div>
 
-        // Synthesized Audio Beep for POS Feedback
-        function playAudioBeep(frequency = 1000, duration = 0.1) {
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + duration);
-            } catch (e) {
-                console.log("Audio play blocked");
-            }
-        }
+    <div class="pie">Jugá, divertite y llegá al primer puesto.</div>
+  </section>
 
-        // Initialize Application Page
-        window.addEventListener('DOMContentLoaded', async () => {
-            lucide.createIcons();
-            startClock();
-            renderPresetGrid();
-            await loadAIModel();
+  <aside class="panel">
+
+    <div class="bloque">
+      <label class="etiqueta" for="dificultad">⚡ Dificultad</label>
+      <select id="dificultad">
+        <option value="facil">Fácil</option>
+        <option value="normal" selected>Normal</option>
+        <option value="dificil">Difícil</option>
+      </select>
+      <p class="ayuda">La velocidad aumenta cuando sumás puntos. La dificultad elegida se aplica al iniciar una nueva partida.</p>
+    </div>
+
+    <div class="bloque fila">
+      <div>
+        <strong>🔊 Sonidos</strong>
+        <div class="ayuda" id="textoSonido">Activados</div>
+      </div>
+      <button class="interruptor activo" id="btnSonido"
+        role="switch" aria-checked="true" aria-label="Activar o desactivar sonidos"></button>
+    </div>
+
+    <div class="bloque">
+      <div class="titulo-tabla">
+        <h2>🏆 Clasificación</h2>
+        <button class="texto-btn" id="btnBorrar">Borrar tabla</button>
+      </div>
+      <p class="ayuda">Los 10 mejores resultados guardados en este navegador.</p>
+      <ol class="lista-records" id="listaRecords"></ol>
+    </div>
+
+    <div class="bloque">
+      <h2>🎮 Cómo jugar</h2>
+      <p class="ayuda">
+        Comé manzanas 🍎 para crecer. Evitá las paredes y tu propio cuerpo.
+        Cada manzana suma 10 puntos.
+      </p>
+      <div class="teclas">
+        <span class="tecla">↑ ↓ ← →</span>
+        <span class="tecla">W A S D</span>
+        <span class="tecla">ESPACIO: pausa</span>
+      </div>
+      <p class="ayuda">En celulares usá los botones o deslizá el dedo sobre el tablero.</p>
+    </div>
+
+  </aside>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const $ = id => document.getElementById(id);
+  const canvas = $("juego");
+  const ctx = canvas.getContext("2d");
+
+  const TAM = 20;
+  const TOTAL = canvas.width / TAM;
+  const VELOCIDADES = { facil: 175, normal: 125, dificil: 85 };
+
+  const STORAGE_RECORDS = "viborita_clasificacion_v2";
+  const STORAGE_NOMBRE = "viborita_ultimo_jugador";
+
+  let vibora = [];
+  let manzana = { x: 15, y: 10 };
+  let direccion = { x: 1, y: 0 };
+  let direccionPendiente = { x: 1, y: 0 };
+
+  let puntaje = 0;
+  let record = 0;
+  let nivel = 1;
+  let estado = "menu";
+  let temporizador = null;
+  let sonidoActivo = true;
+  let audio = null;
+  let partidaGuardada = false;
+  let nombrePartida = "Jugador";
+  let dificultadPartida = "normal";
+
+  // ---------- NOMBRE DEL JUGADOR ----------
+
+  const inputNombre = $("nombreJugador");
+
+  try {
+    inputNombre.value =
+      localStorage.getItem(STORAGE_NOMBRE) || "Jugador";
+  } catch (e) {}
+
+  function obtenerNombre() {
+    // Evita nombres vacíos y limita la longitud.
+    return inputNombre.value.trim().slice(0, 18) || "Jugador";
+  }
+
+  // ---------- CLASIFICACIÓN ----------
+
+  function leerClasificacion() {
+    try {
+      const datos = JSON.parse(
+        localStorage.getItem(STORAGE_RECORDS) || "[]"
+      );
+
+      if (!Array.isArray(datos)) return [];
+
+      return datos.filter(r =>
+        r &&
+        typeof r.nombre === "string" &&
+        Number.isFinite(r.puntos) &&
+        r.puntos > 0 &&
+        typeof r.fecha === "string" &&
+        typeof r.dificultad === "string"
+      ).map(r => ({
+        nombre: r.nombre.slice(0, 18),
+        puntos: r.puntos,
+        fecha: r.fecha,
+        dificultad: r.dificultad
+      })).sort((a, b) => b.puntos - a.puntos).slice(0, 10);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  let clasificacion = leerClasificacion();
+
+  function guardarClasificacion() {
+    try {
+      localStorage.setItem(
+        STORAGE_RECORDS,
+        JSON.stringify(clasificacion)
+      );
+      return true;
+    } catch (e) {
+      $("estado").textContent =
+        "No se pudieron guardar los puntajes en este navegador.";
+      return false;
+    }
+  }
+
+  function actualizarClasificacion() {
+    const lista = $("listaRecords");
+    lista.replaceChildren();
+
+    if (clasificacion.length === 0) {
+      const li = document.createElement("li");
+      li.className = "vacio";
+      li.textContent = "Todavía no hay puntajes. ¡Sé el primero!";
+      lista.appendChild(li);
+      actualizarRecord();
+      return;
+    }
+
+    const medallas = ["🥇", "🥈", "🥉"];
+
+    clasificacion.forEach((r, i) => {
+      const li = document.createElement("li");
+      li.className = "record";
+
+      const posicion = document.createElement("span");
+      posicion.className = "posicion";
+      posicion.textContent = medallas[i] || (i + 1) + ".";
+
+      const info = document.createElement("div");
+
+      const nombre = document.createElement("div");
+      nombre.className = "record-nombre";
+      nombre.textContent = r.nombre;
+
+      const detalle = document.createElement("div");
+      detalle.className = "record-detalle";
+      detalle.textContent = r.dificultad + " · " + r.fecha;
+
+      info.append(nombre, detalle);
+
+      const puntos = document.createElement("span");
+      puntos.className = "record-puntos";
+      puntos.textContent = r.puntos + " pts";
+
+      li.append(posicion, info, puntos);
+      lista.appendChild(li);
+    });
+
+    actualizarRecord();
+  }
+
+  function actualizarRecord() {
+    record = clasificacion.length
+      ? Math.max(...clasificacion.map(r => r.puntos))
+      : 0;
+    $("record").textContent = record;
+  }
+
+  function guardarResultado() {
+    if (partidaGuardada || puntaje <= 0) return;
+    partidaGuardada = true;
+
+    clasificacion.push({
+      nombre: nombrePartida,
+      puntos: puntaje,
+      dificultad: dificultadPartida,
+      fecha: new Date().toLocaleDateString("es-AR")
+    });
+
+    clasificacion.sort((a, b) => b.puntos - a.puntos);
+    clasificacion = clasificacion.slice(0, 10);
+
+    guardarClasificacion();
+    actualizarClasificacion();
+
+    const posicion = clasificacion.findIndex(r =>
+      r.nombre === nombrePartida &&
+      r.puntos === puntaje &&
+      r.fecha === new Date().toLocaleDateString("es-AR")
+    );
+
+    if (posicion !== -1) {
+      $("estado").textContent +=
+        posicion === 0
+          ? " ¡Nuevo líder de la clasificación!"
+          : " Posición en tabla: " + (posicion + 1) + ".";
+    }
+  }
+
+  $("btnBorrar").addEventListener("click", () => {
+    if (!confirm("¿Querés borrar toda la clasificación?")) return;
+
+    clasificacion = [];
+
+    try {
+      localStorage.removeItem(STORAGE_RECORDS);
+    } catch (e) {}
+
+    actualizarClasificacion();
+    $("estado").textContent = "La clasificación fue reiniciada.";
+  });
+
+  // ---------- SONIDOS ----------
+
+  function prepararAudio() {
+    if (!sonidoActivo) return;
+
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!audio && AC) audio = new AC();
+      if (audio && audio.state === "suspended") audio.resume();
+    } catch (e) {}
+  }
+
+  function sonido(tipo) {
+    if (!sonidoActivo) return;
+    prepararAudio();
+    if (!audio) return;
+
+    const sonidos = {
+      comer: [550, 820, .09],
+      inicio: [420, 650, .12],
+      pausa: [440, 300, .12],
+      fin: [350, 120, .28]
+    };
+
+    const [f1, f2, duracion] = sonidos[tipo];
+
+    try {
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(f1, audio.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(
+        f2, audio.currentTime + duracion
+      );
+
+      gain.gain.setValueAtTime(.0001, audio.currentTime);
+      gain.gain.exponentialRampToValueAtTime(
+        .10, audio.currentTime + .015
+      );
+      gain.gain.exponentialRampToValueAtTime(
+        .0001, audio.currentTime + duracion
+      );
+
+      osc.connect(gain);
+      gain.connect(audio.destination);
+      osc.start();
+      osc.stop(audio.currentTime + duracion + .02);
+    } catch (e) {}
+  }
+
+  $("btnSonido").addEventListener("click", () => {
+    sonidoActivo = !sonidoActivo;
+    $("btnSonido").classList.toggle("activo", sonidoActivo);
+    $("btnSonido").setAttribute("aria-checked", String(sonidoActivo));
+    $("textoSonido").textContent =
+      sonidoActivo ? "Activados" : "Desactivados";
+
+    if (sonidoActivo) {
+      prepararAudio();
+      sonido("inicio");
+    }
+  });
+
+  // ---------- TABLERO ----------
+
+  function dibujarCuadricula() {
+    ctx.fillStyle = "#0b1520";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "#142534";
+    ctx.lineWidth = 1;
+
+    for (let i = 0; i <= TOTAL; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * TAM, 0);
+      ctx.lineTo(i * TAM, canvas.height);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, i * TAM);
+      ctx.lineTo(canvas.width, i * TAM);
+      ctx.stroke();
+    }
+  }
+
+  function dibujar() {
+    dibujarCuadricula();
+
+    ctx.font = "19px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(
+      "🍎",
+      manzana.x * TAM + TAM / 2,
+      manzana.y * TAM + TAM / 2
+    );
+
+    vibora.forEach((p, i) => {
+      ctx.fillStyle = i === 0 ? "#9affb8" : "#37d879";
+      ctx.beginPath();
+      ctx.roundRect(p.x * TAM + 2, p.y * TAM + 2, TAM - 4, TAM - 4, 5);
+      ctx.fill();
+
+      if (i === 0) {
+        ctx.fillStyle = "#10251a";
+
+        let ojos;
+        if (direccion.x === 1) ojos = [[14, 6], [14, 13]];
+        else if (direccion.x === -1) ojos = [[6, 6], [6, 13]];
+        else if (direccion.y === -1) ojos = [[6, 6], [13, 6]];
+        else ojos = [[6, 13], [13, 13]];
+
+        ojos.forEach(([ox, oy]) => {
+          ctx.beginPath();
+          ctx.arc(p.x * TAM + ox, p.y * TAM + oy, 2, 0, Math.PI * 2);
+          ctx.fill();
         });
+      }
+    });
+
+    if (estado !== "jugando") {
+      ctx.fillStyle = "rgba(5, 13, 23, .80)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#69f0a0";
+      ctx.font = "bold 27px system-ui";
+      
+      const titulo = {
+        menu: "LA VIBORITA",
+        pausa: "⏸ PAUSA",
+        fin: "¡FIN DEL JUEGO!"
+      };
+
+      ctx.fillText(titulo[estado], 200, 175);
+      ctx.fillStyle = "#f4f8ff";
+      ctx.font = "14px system-ui";
+
+      const subtitulo = {
+        menu: "Presioná Jugar para comenzar",
+        pausa: "Presioná Continuar para volver",
+        fin: "Puntaje: " + puntaje
+      };
+
+      ctx.fillText(subtitulo[estado], 200, 218);
+    }
+  }
+
+  function crearManzana() {
+    let intentos = 0;
+
+    do {
+      manzana = {
+        x: Math.floor(Math.random() * TOTAL),
+        y: Math.floor(Math.random() * TOTAL)
+      };
+      intentos++;
+    } while (
+      vibora.some(p => p.x === manzana.x && p.y === manzana.y) &&
+      intentos < 1000
+    );
+  }
+
+  // ---------- LÓGICA DEL JUEGO ----------
+
+  function velocidad() {
+    const base = VELOCIDADES[dificultadPartida] || 125;
+    return Math.max(48, base - Math.floor(puntaje / 50) * 5);
+  }
+
+  function programarMovimiento() {
+    clearTimeout(temporizador);
+    if (estado !== "jugando") return;
+
+    temporizador = setTimeout(() => {
+      actualizar();
+      if (estado === "jugando") programarMovimiento();
+    }, velocidad());
+  }
+
+  function nuevaPartida() {
+    clearTimeout(temporizador);
+
+    nombrePartida = obtenerNombre();
+    inputNombre.value = nombrePartida;
+    dificultadPartida = $("dificultad").value;
+
+    try {
+      localStorage.setItem(STORAGE_NOMBRE, nombrePartida);
+    } catch (e) {}
+
+    puntaje = 0;
+    nivel = 1;
+    partidaGuardada = false;
+
+    vibora = [
+      { x: 10, y: 10 },
+      { x: 9, y: 10 },
+      { x: 8, y: 10 }
+    ];
+
+    direccion = { x: 1, y: 0 };
+    direccionPendiente = { x: 1, y: 0 };
+
+    crearManzana();
+
+    $("puntaje").textContent = "0";
+    $("nivel").textContent = "1";
+    $("estado").textContent = "¡Vamos, " + nombrePartida + "!";
+
+    estado = "jugando";
+    $("btnInicio").textContent = "↻ Reiniciar";
+    $("btnPausa").textContent = "⏸ Pausar";
+    $("btnPausa").disabled = false;
+
+    sonido("inicio");
+    dibujar();
+    programarMovimiento();
+  }
+
+  function actualizar() {
+    if (estado !== "jugando") return;
+
+    direccion = { ...direccionPendiente };
+
+    const cabeza = {
+      x: vibora[0].x + direccion.x,
+      y: vibora[0].y + direccion.y
+    };
+
+    if (
+      cabeza.x < 0 || cabeza.x >= TOTAL ||
+      cabeza.y < 0 || cabeza.y >= TOTAL
+    ) {
+      terminar();
+      return;
+    }
+
+    const come =
+      cabeza.x === manzana.x &&
+      cabeza.y === manzana.y;
+
+    const cuerpo = come ? vibora : vibora.slice(0, -1);
+
+    if (cuerpo.some(p => p.x === cabeza.x && p.y === cabeza.y)) {
+      terminar();
+      return;
+    }
+
+    vibora.unshift(cabeza);
+
+    if (come) {
+      puntaje += 10;
+      nivel = Math.floor(puntaje / 50) + 1;
+
+      $("puntaje").textContent = puntaje;
+      $("nivel").textContent = nivel;
+
+      sonido("comer");
+      crearManzana();
+
+      $("estado").textContent =
+        nombrePartida + ": " + puntaje + " puntos · Nivel " + nivel;
+    } else {
+      vibora.pop();
+    }
+
+    dibujar();
+  }
+
+  function terminar() {
+    clearTimeout(temporizador);
+    temporizador = null;
+    estado = "fin";
+
+    $("estado").textContent =
+      "¡Fin de la partida de " + nombrePartida +
+      "! Puntaje: " + puntaje + ".";
+
+    $("btnInicio").textContent = "↻ Jugar otra vez";
+    $("btnPausa").textContent = "⏸ Pausar";
+    $("btnPausa").disabled = true;
+
+    sonido("fin");
+    guardarResultado();
+    dibujar();
+  }
+
+  function alternarPausa() {
+    if (estado === "jugando") {
+      clearTimeout(temporizador);
+      temporizador = null;
+      estado = "pausa";
+
+      $("estado").textContent = "Partida pausada.";
+      $("btnInicio").textContent = "▶ Continuar";
+      $("btnPausa").textContent = "▶ Continuar";
+
+      sonido("pausa");
+      dibujar();
+    } else if (estado === "pausa") {
+      estado = "jugando";
+
+      $("estado").textContent = "¡Seguimos jugando, " + nombrePartida + "!";
+      $("btnInicio").textContent = "↻ Reiniciar";
+      $("btnPausa").textContent = "⏸ Pausar";
+
+      sonido("inicio");
+      dibujar();
+      programarMovimiento();
+    }
+  }
+
+  $("btnInicio").addEventListener("click", () => {
+    prepararAudio();
+
+    if (estado === "pausa") {
+      alternarPausa();
+    } else {
+      nuevaPartida();
+    }
+  });
+
+  $("btnPausa").addEventListener("click", alternarPausa);
+
+  // ---------- TECLADO Y CELULAR ----------
+
+  function cambiarDireccion(nombre) {
+    const direcciones = {
+      arriba: { x: 0, y: -1 },
+      abajo: { x: 0, y: 1 },
+      izquierda: { x: -1, y: 0 },
+      derecha: { x: 1, y: 0 }
+    };
+
+    const nueva = direcciones[nombre];
+    if (!nueva) return;
+
+    if (estado === "menu" || estado === "fin") {
+      nuevaPartida();
+    }
+
+    if (estado !== "jugando") return;
+
+    if (
+      nueva.x === -direccion.x &&
+      nueva.y === -direccion.y
+    ) return;
+
+    direccionPendiente = nueva;
+  }
+
+  document.addEventListener("keydown", e => {
+    const teclas = {
+      ArrowUp: "arriba",
+      ArrowDown: "abajo",
+      ArrowLeft: "izquierda",
+      ArrowRight: "derecha",
+      w: "arriba", W: "arriba",
+      s: "abajo", S: "abajo",
+      a: "izquierda", A: "izquierda",
+      d: "derecha", D: "derecha"
+    };
+
+    if (teclas[e.key]) {
+      e.preventDefault();
+      prepararAudio();
+      cambiarDireccion(teclas[e.key]);
+    }
+
+    if (e.code === "Space") {
+      e.preventDefault();
+      prepararAudio();
+
+      if (estado === "jugando" || estado === "pausa") {
+        alternarPausa();
+      } else {
+        nuevaPartida();
+      }
+    }
+  });
+
+  document.querySelectorAll("[data-dir]").forEach(boton => {
+    boton.addEventListener("pointerdown", e => {
+      e.preventDefault();
+      prepararAudio();
+      cambiarDireccion(boton.dataset.dir);
+    });
+  });
+
+  let inicioX = 0;
+  let inicioY = 0;
+
+  canvas.addEventListener("pointerdown", e => {
+    inicioX = e.clientX;
+    inicioY = e.clientY;
+  });
+
+  canvas.addEventListener("pointerup", e => {
+    const dx = e.clientX - inicioX;
+    const dy = e.clientY - inicioY;
+
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+
+    prepararAudio();
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      cambiarDireccion(dx > 0 ? "derecha" : "izquierda");
+    } else {
+      cambiarDireccion(dy > 0 ? "abajo" : "arriba");
+    }
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && estado === "jugando") {
+      alternarPausa();
+    }
+  });
+
+  // ---------- ARRANQUE ----------
+
+  vibora = [
+    { x: 10, y: 10 },
+    { x: 9, y: 10 },
+    { x: 8, y: 10 }
+  ];
+
+  crearManzana();
+  actualizarClasificacion();
+  dibujar();
+
+})();
+</script>
 
-        // Realtime Clock Header
-        function startClock() {
-            const clockEl = document.getElementById('liveClock');
-            setInterval(() => {
-                const now = new Date();
-                clockEl.textContent = now.toLocaleTimeString('es-AR');
-            }, 1000);
-        }
-
-        // TensorFlow Model Loading Handler
-        async function loadAIModel() {
-            try {
-                aiStatusBadge.classList.remove('hidden');
-                cocoModel = await cocoSsd.load();
-                
-                aiStatusBadge.className = "flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200 shadow-sm";
-                aiStatusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-brand-500"></span><span>IA Lista (COCO-SSD)</span>';
-                
-                showToast('Modelo de IA cargado con éxito', 'success');
-            } catch (error) {
-                console.error("Error al cargar modelo TensorFlow:", error);
-                aiStatusBadge.className = "flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-red-50 text-red-700 border border-red-200 shadow-sm";
-                aiStatusBadge.innerHTML = '<span>Error en IA</span>';
-                showToast('No se pudo cargar el modelo IA. Usa la botonera rápida.', 'error');
-            }
-        }
-
-        // Render Preset Fallback Product Buttons
-        function renderPresetGrid() {
-            const grid = document.getElementById('presetCatalogGrid');
-            grid.innerHTML = '';
-
-            Object.keys(PRODUCT_CATALOG).forEach(key => {
-                const item = PRODUCT_CATALOG[key];
-                const btn = document.createElement('button');
-                btn.className = "p-2.5 bg-slate-50 border border-slate-200 hover:border-brand-500 hover:bg-white rounded-xl flex flex-col items-center justify-center text-center transition group active:scale-95 shadow-sm";
-                btn.onclick = () => simulateManualDetection(key);
-                btn.innerHTML = `
-                    <div class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-brand-600 mb-1.5 group-hover:bg-brand-600 group-hover:text-white transition shadow-sm">
-                        <i data-lucide="${item.icon}" class="w-4 h-4"></i>
-                    </div>
-                    <span class="text-xs font-bold text-slate-700 truncate w-full">${item.name}</span>
-                    <span class="text-[10px] font-mono text-slate-500">$${item.price.toFixed(2)}</span>
-                `;
-                grid.appendChild(btn);
-            });
-            lucide.createIcons();
-        }
-
-        // Toggle Live Camera Webcam Stream
-        toggleCameraBtn.addEventListener('click', async () => {
-            if (isCameraActive) {
-                stopCamera();
-            } else {
-                await startCamera();
-            }
-        });
-
-        async function startCamera() {
-            try {
-                videoStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
-                    audio: false
-                });
-                webcam.srcObject = videoStream;
-                webcam.classList.remove('hidden');
-                cameraPlaceholder.classList.add('hidden');
-                scanAnimation.classList.remove('hidden');
-                targetReticle.classList.remove('hidden');
-                
-                isCameraActive = true;
-                toggleCamText.textContent = "Detener Cámara";
-                toggleCameraBtn.classList.replace('bg-slate-100', 'bg-red-50');
-                toggleCameraBtn.classList.replace('text-slate-700', 'text-red-600');
-                
-                scanTriggerBtn.disabled = false;
-
-                webcam.onloadedmetadata = () => {
-                    canvas.width = webcam.videoWidth;
-                    canvas.height = webcam.videoHeight;
-                    detectFrameLoop();
-                };
-            } catch (err) {
-                console.error("Camera access error:", err);
-                showToast('No se pudo acceder a la cámara. Revisa permisos.', 'error');
-            }
-        }
-
-        function stopCamera() {
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-            }
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
-            webcam.classList.add('hidden');
-            cameraPlaceholder.classList.remove('hidden');
-            scanAnimation.classList.add('hidden');
-            targetReticle.classList.add('hidden');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            isCameraActive = false;
-            toggleCamText.textContent = "Iniciar Cámara";
-            toggleCameraBtn.classList.replace('bg-red-50', 'bg-slate-100');
-            toggleCameraBtn.classList.replace('text-red-600', 'text-slate-700');
-            scanTriggerBtn.disabled = true;
-
-            resetDetectionBadge();
-        }
-
-        // TensorFlow Continuous Realtime Recognition Loop
-        async function detectFrameLoop() {
-            if (!isCameraActive || !cocoModel) return;
-
-            try {
-                const predictions = await cocoModel.detect(webcam);
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                let highestConfPrediction = null;
-
-                predictions.forEach(prediction => {
-                    if (prediction.score > 0.5) {
-                        const [x, y, width, height] = prediction.bbox;
-                        
-                        // Draw light-mode styled bounding boxes
-                        ctx.strokeStyle = '#10b981';
-                        ctx.lineWidth = 3;
-                        ctx.strokeRect(x, y, width, height);
-
-                        ctx.fillStyle = '#10b981';
-                        ctx.font = 'bold 12px sans-serif';
-                        const labelText = `${prediction.class} (${Math.round(prediction.score * 100)}%)`;
-                        ctx.fillRect(x, y - 22, ctx.measureText(labelText).width + 10, 22);
-
-                        ctx.fillStyle = '#ffffff';
-                        ctx.fillText(labelText, x + 5, y - 6);
-
-                        if (!highestConfPrediction || prediction.score > highestConfPrediction.score) {
-                            highestConfPrediction = prediction;
-                        }
-                    }
-                });
-
-                if (highestConfPrediction) {
-                    updateDetectionBadge(highestConfPrediction.class, highestConfPrediction.score);
-                } else {
-                    resetDetectionBadge();
-                }
-
-            } catch (err) {
-                console.error("Detection error:", err);
-            }
-
-            animationFrameId = requestAnimationFrame(detectFrameLoop);
-        }
-
-        // Update UI Detection Badge
-        function updateDetectionBadge(label, score) {
-            const mappedKey = findCatalogKey(label);
-            const scorePercent = Math.round(score * 100) + '%';
-
-            if (mappedKey) {
-                const prod = PRODUCT_CATALOG[mappedKey];
-                detectedText.textContent = `${prod.name} (${mappedKey})`;
-                detectedBadge.className = "w-2.5 h-2.5 rounded-full bg-brand-500 animate-pulse";
-                detectedConfidence.textContent = scorePercent;
-                lastDetectedObject = mappedKey;
-            } else {
-                detectedText.textContent = `Sin mapeo: ${label}`;
-                detectedBadge.className = "w-2.5 h-2.5 rounded-full bg-amber-500";
-                detectedConfidence.textContent = scorePercent;
-                lastDetectedObject = null;
-            }
-        }
-
-        function resetDetectionBadge() {
-            detectedText.textContent = "Esperando escaneo...";
-            detectedBadge.className = "w-2.5 h-2.5 rounded-full bg-slate-400";
-            detectedConfidence.textContent = "";
-            lastDetectedObject = null;
-        }
-
-        function findCatalogKey(label) {
-            const cleanLabel = label.toLowerCase().trim();
-            if (PRODUCT_CATALOG[cleanLabel]) return cleanLabel;
-            if (cleanLabel.includes('phone') || cleanLabel.includes('mobile')) return 'cell phone';
-            if (cleanLabel.includes('cup') || cleanLabel.includes('mug')) return 'cup';
-            if (cleanLabel.includes('bottle')) return 'bottle';
-            if (cleanLabel.includes('laptop')) return 'laptop';
-            return null;
-        }
-
-        // Add Currently Detected Product via Camera Button
-        scanTriggerBtn.addEventListener('click', () => {
-            if (lastDetectedObject) {
-                addToCart(lastDetectedObject);
-                playAudioBeep(1000, 0.12);
-            } else {
-                showToast('Apunta la cámara a un objeto reconocible (manzana, taza, botella, etc.).', 'info');
-            }
-        });
-
-        // Add Product via Preset Button / File Fallback
-        function simulateManualDetection(productKey) {
-            if (PRODUCT_CATALOG[productKey]) {
-                const prod = PRODUCT_CATALOG[productKey];
-                detectedText.textContent = `${prod.name} (Prueba)`;
-                detectedBadge.className = "w-2.5 h-2.5 rounded-full bg-brand-500";
-                detectedConfidence.textContent = "99%";
-                lastDetectedObject = productKey;
-                
-                addToCart(productKey);
-                playAudioBeep(850, 0.1);
-            }
-        }
-
-        // File Upload Analysis Handler
-        document.getElementById('imageUploadInput').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file || !cocoModel) return;
-
-            const img = document.createElement('img');
-            img.src = URL.createObjectURL(file);
-            img.onload = async () => {
-                const predictions = await cocoModel.detect(img);
-                if (predictions.length > 0) {
-                    const topPred = predictions[0];
-                    const key = findCatalogKey(topPred.class);
-                    if (key) {
-                        simulateManualDetection(key);
-                        showToast(`Imagen reconocida: ${PRODUCT_CATALOG[key].name}`, 'success');
-                    } else {
-                        showToast(`Se detectó "${topPred.class}", pero no está en el catálogo del POS.`, 'info');
-                    }
-                } else {
-                    showToast('No se identificaron objetos en la imagen.', 'error');
-                }
-            };
-        });
-
-        // Shopping Cart Management Logic
-        function addToCart(productKey) {
-            const itemDef = PRODUCT_CATALOG[productKey];
-            if (!itemDef) return;
-
-            const existingIndex = cart.findIndex(item => item.key === productKey);
-
-            if (existingIndex > -1) {
-                cart[existingIndex].quantity += 1;
-            } else {
-                cart.push({
-                    key: productKey,
-                    name: itemDef.name,
-                    price: itemDef.price,
-                    icon: itemDef.icon,
-                    quantity: 1
-                });
-            }
-
-            updateCartUI();
-            showToast(`Agregado: ${itemDef.name}`, 'success');
-        }
-
-        function updateCartQuantity(key, delta) {
-            const index = cart.findIndex(item => item.key === key);
-            if (index > -1) {
-                cart[index].quantity += delta;
-                if (cart[index].quantity <= 0) {
-                    cart.splice(index, 1);
-                }
-            }
-            updateCartUI();
-        }
-
-        function removeFromCart(key) {
-            cart = cart.filter(item => item.key !== key);
-            updateCartUI();
-        }
-
-        clearCartBtn.addEventListener('click', () => {
-            if (cart.length === 0) return;
-            cart = [];
-            updateCartUI();
-            showToast('Carrito vaciado', 'info');
-        });
-
-        // Render Cart Items & Total Price Calculations
-        function updateCartUI() {
-            cartList.innerHTML = '';
-
-            if (cart.length === 0) {
-                cartList.appendChild(emptyCartState);
-                checkoutBtn.disabled = true;
-                cartCountBadge.textContent = '0';
-                subtotalPrice.textContent = '$0.00';
-                taxPrice.textContent = '$0.00';
-                discountPrice.textContent = '-$0.00';
-                totalPrice.textContent = '$0.00';
-                renderRecommendations();
-                return;
-            }
-
-            let totalItemsCount = 0;
-            let rawSubtotal = 0;
-
-            cart.forEach(item => {
-                totalItemsCount += item.quantity;
-                const itemTotal = item.price * item.quantity;
-                rawSubtotal += itemTotal;
-
-                const itemRow = document.createElement('div');
-                itemRow.className = "bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 shadow-sm hover:border-slate-300 transition";
-                itemRow.innerHTML = `
-                    <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-brand-600 shrink-0">
-                            <i data-lucide="${item.icon}" class="w-4 h-4"></i>
-                        </div>
-                        <div class="truncate">
-                            <h4 class="text-xs font-bold text-slate-800 truncate">${item.name}</h4>
-                            <p class="text-[10px] text-slate-400 font-mono">$${item.price.toFixed(2)} c/u</p>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-3 shrink-0">
-                        <div class="flex items-center bg-slate-100 border border-slate-200 rounded-lg p-0.5">
-                            <button onclick="updateCartQuantity('${item.key}', -1)" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-white rounded transition">
-                                <i data-lucide="minus" class="w-3 h-3"></i>
-                            </button>
-                            <span class="w-7 text-center text-xs font-bold font-mono text-slate-800">${item.quantity}</span>
-                            <button onclick="updateCartQuantity('${item.key}', 1)" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-white rounded transition">
-                                <i data-lucide="plus" class="w-3 h-3"></i>
-                            </button>
-                        </div>
-
-                        <span class="text-xs font-bold font-mono text-slate-800 min-w-[55px] text-right">$${itemTotal.toFixed(2)}</span>
-
-                        <button onclick="removeFromCart('${item.key}')" class="text-slate-400 hover:text-red-500 p-1 transition">
-                            <i data-lucide="x" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                `;
-                cartList.appendChild(itemRow);
-            });
-
-            const tax = rawSubtotal * 0.21;
-            const discount = totalItemsCount >= 3 ? rawSubtotal * 0.05 : 0;
-            const finalTotal = rawSubtotal + tax - discount;
-
-            cartCountBadge.textContent = totalItemsCount.toString();
-            subtotalPrice.textContent = `$${rawSubtotal.toFixed(2)}`;
-            taxPrice.textContent = `$${tax.toFixed(2)}`;
-            discountPrice.textContent = `-$${discount.toFixed(2)}`;
-            totalPrice.textContent = `$${finalTotal.toFixed(2)}`;
-
-            checkoutBtn.disabled = false;
-            lucide.createIcons();
-            
-            renderRecommendations();
-        }
-
-        // Dynamic Recommendations Engine
-        function renderRecommendations() {
-            recommendationsContainer.innerHTML = '';
-
-            if (cart.length === 0) {
-                aiAdviceText.textContent = "Agrega productos al carrito para recibir sugerencias de venta cruzada en tiempo real.";
-                recommendationsContainer.innerHTML = '<span class="text-xs text-slate-400 italic">No hay sugerencias en este momento.</span>';
-                return;
-            }
-
-            const cartCategories = cart.map(item => PRODUCT_CATALOG[item.key]?.category);
-            const cartKeys = cart.map(item => item.key);
-
-            let matchingSuggestions = [];
-
-            RECOMMENDATION_RULES.forEach(rule => {
-                if (cartCategories.includes(rule.triggerCategory) && !cartKeys.includes(rule.suggestKey)) {
-                    matchingSuggestions.push({
-                        key: rule.suggestKey,
-                        reason: rule.reason,
-                        product: PRODUCT_CATALOG[rule.suggestKey]
-                    });
-                }
-            });
-
-            if (matchingSuggestions.length > 0) {
-                aiAdviceText.textContent = "Sugerencias IA basadas en el carrito:";
-                matchingSuggestions.forEach(sug => {
-                    const card = document.createElement('div');
-                    card.className = "bg-white border border-brand-200 rounded-xl p-2.5 flex items-center justify-between gap-3 min-w-[250px] shrink-0 shadow-sm";
-                    card.innerHTML = `
-                        <div class="flex items-center gap-2">
-                            <div class="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
-                                <i data-lucide="${sug.product.icon}" class="w-4 h-4"></i>
-                            </div>
-                            <div class="text-left">
-                                <p class="text-xs font-bold text-slate-800">${sug.product.name}</p>
-                                <p class="text-[10px] text-slate-400 line-clamp-1">${sug.reason}</p>
-                            </div>
-                        </div>
-                        <button onclick="addToCart('${sug.key}')" class="px-2.5 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold transition flex items-center gap-1 shrink-0 shadow-sm">
-                            <i data-lucide="plus" class="w-3 h-3"></i>
-                            <span>+$${sug.product.price.toFixed(0)}</span>
-                        </button>
-                    `;
-                    recommendationsContainer.appendChild(card);
-                });
-            } else {
-                aiAdviceText.textContent = "¡Excelente combinación de compra!";
-                recommendationsContainer.innerHTML = '<span class="text-xs text-brand-600 font-medium">Carrito optimizado.</span>';
-            }
-            lucide.createIcons();
-        }
-
-        // Checkout Receipt Modal
-        const receiptModal = document.getElementById('receiptModal');
-        const closeModalBtn = document.getElementById('closeModalBtn');
-        const printReceiptBtn = document.getElementById('printReceiptBtn');
-        const newSaleBtn = document.getElementById('newSaleBtn');
-
-        checkoutBtn.addEventListener('click', () => {
-            if (cart.length === 0) return;
-
-            document.getElementById('receiptDate').textContent = `Fecha: ${new Date().toLocaleString('es-AR')}`;
-            
-            const receiptItemsList = document.getElementById('receiptItemsList');
-            receiptItemsList.innerHTML = '';
-
-            let rawSubtotal = 0;
-            let totalItemsCount = 0;
-
-            cart.forEach(item => {
-                const total = item.price * item.quantity;
-                rawSubtotal += total;
-                totalItemsCount += item.quantity;
-
-                const row = document.createElement('div');
-                row.className = "grid grid-cols-12 py-0.5";
-                row.innerHTML = `
-                    <span class="col-span-6 truncate">${item.quantity}x ${item.name}</span>
-                    <span class="col-span-3 text-right">$${item.price.toFixed(2)}</span>
-                    <span class="col-span-3 text-right font-bold">$${total.toFixed(2)}</span>
-                `;
-                receiptItemsList.appendChild(row);
-            });
-
-            const tax = rawSubtotal * 0.21;
-            const discount = totalItemsCount >= 3 ? rawSubtotal * 0.05 : 0;
-            const finalTotal = rawSubtotal + tax - discount;
-
-            document.getElementById('receiptSubtotal').textContent = `$${rawSubtotal.toFixed(2)}`;
-            document.getElementById('receiptTax').textContent = `$${tax.toFixed(2)}`;
-            document.getElementById('receiptDiscount').textContent = `-$${discount.toFixed(2)}`;
-            document.getElementById('receiptTotal').textContent = `$${finalTotal.toFixed(2)}`;
-
-            receiptModal.classList.remove('hidden');
-            playAudioBeep(1200, 0.2);
-        });
-
-        closeModalBtn.addEventListener('click', () => receiptModal.classList.add('hidden'));
-
-        newSaleBtn.addEventListener('click', () => {
-            cart = [];
-            updateCartUI();
-            receiptModal.classList.add('hidden');
-            showToast('Nueva venta iniciada', 'info');
-        });
-
-        printReceiptBtn.addEventListener('click', () => {
-            window.print();
-        });
-
-        // Dynamic Notification Toast
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            
-            const styles = {
-                success: 'bg-white border-brand-200 text-brand-700',
-                error: 'bg-white border-red-200 text-red-600',
-                info: 'bg-white border-slate-200 text-slate-700'
-            };
-
-            toast.className = `p-3.5 rounded-xl border shadow-lg text-xs font-semibold flex items-center gap-2.5 transition duration-300 pointer-events-auto ${styles[type] || styles.info}`;
-            toast.innerHTML = `
-                <i data-lucide="${type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : 'info'}" class="w-4 h-4"></i>
-                <span>${message}</span>
-            `;
-
-            container.appendChild(toast);
-            lucide.createIcons();
-
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-2');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-    </script>
 </body>
 </html>
